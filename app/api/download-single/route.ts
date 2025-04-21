@@ -18,6 +18,13 @@ function sanitizeFilename(filename: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  console.log(`[Download API] YTDLP_BIN environment variable: ${process.env.YTDLP_BIN}`);
+  if (process.env.YTDLP_BIN) {
+    console.log(`[Download API] yt-dlp binary exists at YTDLP_BIN path: ${fs.existsSync(process.env.YTDLP_BIN)}`);
+  } else {
+    console.log(`[Download API] YTDLP_BIN environment variable is not set.`);
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
   const format = searchParams.get('format') || 'mp3'; // Default to mp3

@@ -4,7 +4,16 @@ import YtDlpWrap from 'yt-dlp-wrap';
 // Initialize YtDlpWrap - Ensure yt-dlp binary is accessible in PATH or provide path
 const ytDlpWrap = new YtDlpWrap();
 
+import fs from 'fs'; // Import fs to check file existence
+
 export async function GET(request: NextRequest) {
+  console.log(`[Metadata API] YTDLP_BIN environment variable: ${process.env.YTDLP_BIN}`);
+  if (process.env.YTDLP_BIN) {
+    console.log(`[Metadata API] yt-dlp binary exists at YTDLP_BIN path: ${fs.existsSync(process.env.YTDLP_BIN)}`);
+  } else {
+    console.log(`[Metadata API] YTDLP_BIN environment variable is not set.`);
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
 
