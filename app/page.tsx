@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import Image from 'next/image'; // <-- Added Image import
-import { Moon, Sun, X, Loader2 } from "lucide-react"; // <-- Added Loader2 for loading state
+import { Moon, Sun, X, Loader2, Copy } from "lucide-react"; // <-- Added Loader2 & Copy icons
 import { getStoredDownloadPath, setStoredDownloadPath } from "@/lib/utils";
 
 type CardItem = {
@@ -62,7 +62,7 @@ export default function Home() {
           setCards(prevCards => {
             const updatedCards = prevCards.map(card =>
               card.url === trimmedUrl && card.status === 'loading'
-                ? { ...card, title: data.title, artist: data.artist, thumbnail: data.thumbnail, status: 'pending' }
+                ? { ...card, title: data.title, artist: data.artist, thumbnail: data.thumbnail, status: 'pending' as CardItem['status'] }
                 : card
             );
             console.log('[handleInputSubmit] New cards state (success):', updatedCards); // Log updated state
@@ -72,7 +72,7 @@ export default function Home() {
           console.error("[handleInputSubmit] Metadata fetch failed:", data?.message || `Status: ${response.status}`); // Log failure path
           setCards(prevCards => {
             const updatedCards = prevCards.map(card =>
-              card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' } : card
+              card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' as CardItem['status'] } : card
             );
             console.log('[handleInputSubmit] New cards state (failure):', updatedCards); // Log updated state
             return updatedCards;
@@ -82,7 +82,7 @@ export default function Home() {
         console.error("[handleInputSubmit] Error calling metadata API:", error); // Log catch block
         setCards(prevCards => {
            const updatedCards = prevCards.map(card =>
-            card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' } : card
+            card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' as CardItem['status'] } : card
           );
           console.log('[handleInputSubmit] New cards state (catch):', updatedCards); // Log updated state
           return updatedCards;
@@ -109,7 +109,7 @@ export default function Home() {
 
     setCards(prevCards =>
       prevCards.map(card =>
-        card.status === 'pending' ? { ...card, status: 'triggered' } : card
+        card.status === 'pending' ? { ...card, status: 'triggered' as CardItem['status'] } : card
       )
     );
 
@@ -124,7 +124,7 @@ export default function Home() {
         document.body.removeChild(link);
       } catch {
         setCards(prevCards => prevCards.map(c =>
-          c.url === card.url ? { ...c, status: 'error' } : c
+          c.url === card.url ? { ...c, status: 'error' as CardItem['status'] } : c
         ));
       }
     }
@@ -183,6 +183,25 @@ export default function Home() {
                       {card.artist && (
                         <span className="text-sm text-muted-foreground truncate">{card.artist}</span>
                       )}
+                      {/* Display URL and Copy Button */}
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-xs text-muted-foreground truncate flex-1" title={card.url}>
+                          {card.url}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent card click or other parent events
+                            navigator.clipboard.writeText(card.url);
+                            // Optional: Add feedback like changing icon or showing tooltip
+                          }}
+                          title="Copy URL"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
                       {card.status === 'error' && (
                          <span className="text-xs text-red-600">Failed to load metadata</span>
                       )}
