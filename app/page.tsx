@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import Image from 'next/image'; // <-- Added Image import
-import { Moon, Sun, X, Loader2, Copy } from "lucide-react"; // <-- Added Loader2 & Copy icons
+import { Moon, Sun, X, Loader2, Copy, Check } from "lucide-react"; // <-- Added Loader2, Copy, & Check icons
 import { getStoredDownloadPath, setStoredDownloadPath } from "@/lib/utils";
 
 type CardItem = {
@@ -13,6 +13,7 @@ type CardItem = {
   title?: string;    // <-- Added optional title
   artist?: string;   // <-- Added optional artist
   thumbnail?: string; // <-- Added optional thumbnail
+  copied?: boolean; // <-- Added optional copied state for button feedback
 };
 
 export default function Home() {
@@ -45,7 +46,7 @@ export default function Home() {
       console.log(`[handleInputSubmit] Started for URL: ${trimmedUrl}`); // Log start
 
       // Add card with loading state immediately
-      const newCard: CardItem = { url: trimmedUrl, status: 'loading' };
+      const newCard: CardItem = { url: trimmedUrl, status: 'loading', copied: false }; // Initialize copied state
       console.log('[handleInputSubmit] Adding loading card:', newCard); // Log card add
       setCards(prevCards => [...prevCards, newCard]);
       setInputValue(''); // Clear input after adding
@@ -159,16 +160,18 @@ export default function Home() {
             {cards.map((card, index) => (
               <div
                 key={index}
-                className={`flex flex-col gap-2 p-4 border rounded-lg bg-muted ${
-                  card.status === 'error' ? 'border-red-500' : '' // Highlight error cards
+                className={`flex flex-col gap-2 p-4 border rounded-lg ${
+                  card.status === 'error' ? 'border-red-500 bg-red-100' : // Highlight error cards with red border and background
+                  card.status === 'triggered' ? 'bg-blue-100 dark:bg-blue-900' : // Highlight triggered downloads with blue background
+                  'bg-muted' // Default background
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-grow min-w-0"> {/* Added flex-grow and min-w-0 */}
-                    {card.status === 'loading' && (
+                    {card.status === 'loading' && ( // Show loader only for loading status (metadata fetch)
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     )}
-                    {card.thumbnail && card.status !== 'loading' && (
+                    {card.thumbnail && card.status !== 'loading' && ( // Only show thumbnail when not loading
                       <div className="relative w-16 h-9 flex-shrink-0"> {/* Adjusted size, added flex-shrink-0 */}
                         <Image
                           src={card.thumbnail}
@@ -192,14 +195,32 @@ export default function Home() {
                           variant="ghost"
                           size="icon"
                           className="h-5 w-5 flex-shrink-0"
-                          onClick={(e) => {
+                          onClick={async (e) => { // Made async to use await for clipboard
                             e.stopPropagation(); // Prevent card click or other parent events
-                            navigator.clipboard.writeText(card.url);
-                            // Optional: Add feedback like changing icon or showing tooltip
+                            try {
+                              await navigator.clipboard.writeText(card.url);
+                              // Update the specific card's copied state
+                              setCards(prevCards =>
+                                prevCards.map(c =>
+                                  c.url === card.url ? { ...c, copied: true } : c
+                                )
+                              );
+                              // Reset copied state after a delay
+                              setTimeout(() => {
+                                setCards(prevCards =>
+                                  prevCards.map(c =>
+                                    c.url === card.url ? { ...c, copied: false } : c
+                                  )
+                                );
+                              }, 2000); // Reset after 2 seconds
+                            } catch (err) {
+                              console.error('Failed to copy URL: ', err);
+                              // Optional: Show an error state or message
+                            }
                           }}
                           title="Copy URL"
                         >
-                          <Copy className="h-3 w-3" />
+                          {card.copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />} {/* Conditional icon */}
                         </Button>
                       </div>
                       {card.status === 'error' && (
@@ -253,7 +274,14 @@ export default function Home() {
           className="relative overflow-hidden"
           disabled={cards.filter(c => c.status === 'pending').length === 0 || isDownloading}
         >
-          {isDownloading ? 'Downloading...' : 'Download'}
+          {isDownloading ? (
+            <span className="flex items-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Downloading...
+            </span>
+          ) : (
+            'Download'
+          )}
         </Button>
       </main>
     </div>
