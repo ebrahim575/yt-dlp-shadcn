@@ -2,16 +2,17 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
-import { Moon, Sun, X } from "lucide-react";
+import Image from 'next/image'; // <-- Added Image import
+import { Moon, Sun, X, Loader2 } from "lucide-react"; // <-- Added Loader2 for loading state
 import { getStoredDownloadPath, setStoredDownloadPath } from "@/lib/utils";
 
-// Define the structure for a card item including status and progress
 type CardItem = {
   url: string;
-  status: 'pending' | 'triggered' | 'error';
-  progress: number;
+  status: 'pending' | 'loading' | 'triggered' | 'error'; // <-- Added 'loading' status
+  title?: string;    // <-- Added optional title
+  artist?: string;   // <-- Added optional artist
+  thumbnail?: string; // <-- Added optional thumbnail
 };
 
 export default function Home() {
@@ -37,10 +38,56 @@ export default function Home() {
     setInputValue(e.target.value);
   };
 
-  const handleInputSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputValue.trim()) {
-      setCards([...cards, { url: inputValue.trim(), status: 'pending', progress: 0 }]);
-      setInputValue('');
+  const handleInputSubmit = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const trimmedUrl = inputValue.trim();
+      if (!trimmedUrl) return; // Don't submit if empty
+      console.log(`[handleInputSubmit] Started for URL: ${trimmedUrl}`); // Log start
+
+      // Add card with loading state immediately
+      const newCard: CardItem = { url: trimmedUrl, status: 'loading' };
+      console.log('[handleInputSubmit] Adding loading card:', newCard); // Log card add
+      setCards(prevCards => [...prevCards, newCard]);
+      setInputValue(''); // Clear input after adding
+
+      try {
+        console.log(`[handleInputSubmit] Fetching metadata from /api/metadata?url=${encodeURIComponent(trimmedUrl)}`); // Log fetch start
+        const response = await fetch(`/api/metadata?url=${encodeURIComponent(trimmedUrl)}`);
+        console.log('[handleInputSubmit] Fetch response received:', response); // Log raw response
+        const data = await response.json();
+        console.log('[handleInputSubmit] Parsed data:', data); // Log parsed data
+
+        if (response.ok && data.success) {
+          console.log('[handleInputSubmit] Fetch successful. Updating card state.'); // Log success path
+          setCards(prevCards => {
+            const updatedCards = prevCards.map(card =>
+              card.url === trimmedUrl && card.status === 'loading'
+                ? { ...card, title: data.title, artist: data.artist, thumbnail: data.thumbnail, status: 'pending' }
+                : card
+            );
+            console.log('[handleInputSubmit] New cards state (success):', updatedCards); // Log updated state
+            return updatedCards;
+          });
+        } else {
+          console.error("[handleInputSubmit] Metadata fetch failed:", data?.message || `Status: ${response.status}`); // Log failure path
+          setCards(prevCards => {
+            const updatedCards = prevCards.map(card =>
+              card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' } : card
+            );
+            console.log('[handleInputSubmit] New cards state (failure):', updatedCards); // Log updated state
+            return updatedCards;
+          });
+        }
+      } catch (error) {
+        console.error("[handleInputSubmit] Error calling metadata API:", error); // Log catch block
+        setCards(prevCards => {
+           const updatedCards = prevCards.map(card =>
+            card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' } : card
+          );
+          console.log('[handleInputSubmit] New cards state (catch):', updatedCards); // Log updated state
+          return updatedCards;
+        });
+      }
     }
   };
 
@@ -54,62 +101,34 @@ export default function Home() {
     setIsDownloading(true);
     const formatString = isMP4 ? 'mp4' : 'mp3';
 
-    // Create a new array to update statuses immutably
-    // Only trigger downloads for pending cards
     const cardsToDownload = cards.filter(card => card.status === 'pending');
     if (cardsToDownload.length === 0) {
-      console.log("No pending URLs to download.");
       setIsDownloading(false);
       return;
     }
 
-    // Update status for cards that will be triggered
     setCards(prevCards =>
       prevCards.map(card =>
-        card.status === 'pending' ? { ...card, status: 'triggered', progress: 0 } : card
+        card.status === 'pending' ? { ...card, status: 'triggered' } : card
       )
     );
-
-    console.log(`Starting downloads for ${cardsToDownload.length} URLs... Format: ${formatString}`);
 
     for (const card of cardsToDownload) {
       try {
         const apiUrl = `/api/download-single?url=${encodeURIComponent(card.url)}&format=${formatString}`;
-        console.log(`Triggering download for: ${card.url}`);
-
-        // Create a temporary link to trigger the download
         const link = document.createElement('a');
         link.href = apiUrl;
         link.setAttribute('download', '');
-        
-        // Add progress event listener
-        link.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const progress = Math.round((e.loaded / e.total) * 100);
-            setCards(prevCards => prevCards.map(c =>
-              c.url === card.url ? { ...c, progress } : c
-            ));
-          }
-        });
-
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
-        // Update progress to 100% after download is triggered
+      } catch {
         setCards(prevCards => prevCards.map(c =>
-          c.url === card.url ? { ...c, progress: 100 } : c
-        ));
-
-      } catch (error) {
-        console.error(`Failed to trigger download for ${card.url}:`, error);
-        setCards(prevCards => prevCards.map(c =>
-          c.url === card.url ? { ...c, status: 'error', progress: 0 } : c
+          c.url === card.url ? { ...c, status: 'error' } : c
         ));
       }
     }
 
-    console.log('All download triggers initiated.');
     setIsDownloading(false);
   };
 
@@ -140,25 +159,41 @@ export default function Home() {
             {cards.map((card, index) => (
               <div
                 key={index}
-                className="flex flex-col gap-2 p-4 border rounded-lg bg-muted"
+                className={`flex flex-col gap-2 p-4 border rounded-lg bg-muted ${
+                  card.status === 'error' ? 'border-red-500' : '' // Highlight error cards
+                }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="truncate">{card.url}</span>
+                  <div className="flex items-center gap-2 flex-grow min-w-0"> {/* Added flex-grow and min-w-0 */}
+                    {card.status === 'loading' && (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    )}
+                    {card.thumbnail && card.status !== 'loading' && (
+                      <div className="relative w-16 h-9 flex-shrink-0"> {/* Adjusted size, added flex-shrink-0 */}
+                        <Image
+                          src={card.thumbnail}
+                          alt="Thumbnail"
+                          fill
+                          className="rounded object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-col min-w-0"> {/* Added min-w-0 */}
+                      <span className="font-medium truncate">{card.title || card.url}</span> {/* Added truncate */}
+                      {card.artist && (
+                        <span className="text-sm text-muted-foreground truncate">{card.artist}</span>
+                      )}
+                      {card.status === 'error' && (
+                         <span className="text-xs text-red-600">Failed to load metadata</span>
+                      )}
+                    </div>
+                  </div>
                   <button
                     onClick={() => handleDeleteCard(index)}
-                    className="p-1 rounded-full hover:bg-background"
+                    className="p-1 rounded-full hover:bg-background flex-shrink-0 ml-2" // Added flex-shrink-0 and margin
                   >
                     <X className="h-4 w-4" />
                   </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Progress 
-                    value={card.progress} 
-                    className="flex-1 h-2 [&>div]:bg-primary"
-                  />
-                  <span className="text-sm text-muted-foreground min-w-[3rem] text-right">
-                    {card.progress}%
-                  </span>
                 </div>
               </div>
             ))}
