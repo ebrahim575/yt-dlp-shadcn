@@ -6,7 +6,6 @@ const ytDlpWrap = new YtDlpWrap();
 
 import fs from 'fs'; // Import fs to check file existence
 
-import path from 'path'; // Import path to join directory paths
 
 export async function GET(request: NextRequest) {
   console.log(`[Metadata API] YTDLP_BIN environment variable: ${process.env.YTDLP_BIN}`);
