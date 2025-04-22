@@ -11,10 +11,10 @@ frontend:
       commands:
         - echo "Running Next.js build..."
         - npm run build
-        - echo "Copying yt-dlp to .next/bin for deployment..."
+        - echo "Copying yt-dlp into .next/bin for Lambda runtime..."
         - mkdir -p .next/bin
         - cp ./bin/yt-dlp .next/bin/yt-dlp
-        - echo "yt-dlp copied successfully."
+        - echo "yt-dlp copied to .next/bin"
         - ls -la .next/bin
   artifacts:
     baseDirectory: .next

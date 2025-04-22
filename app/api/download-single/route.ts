@@ -5,7 +5,9 @@ import os from 'os';
 import YtDlpWrap from 'yt-dlp-wrap';
 
 // Initialize YtDlpWrap - Consider adding the binary path if not in system PATH
-const ytDlpWrap = new YtDlpWrap();
+// Initialize YtDlpWrap - Consider adding the binary path if not in system PATH
+// Use environment variable or a fallback path
+const ytDlpWrap = new YtDlpWrap(process.env.YTDLP_BIN || '/var/task/.next/bin/yt-dlp');
 
 // Define max length for the filename base (title - artist part)
 const MAX_FILENAME_BASE_LENGTH = 100;

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import YtDlpWrap from 'yt-dlp-wrap';
 
 // Initialize YtDlpWrap - Ensure yt-dlp binary is accessible in PATH or provide path
-const ytDlpWrap = new YtDlpWrap();
+// Initialize YtDlpWrap - Ensure yt-dlp binary is accessible in PATH or provide path
+// Use environment variable or a fallback path
+const ytDlpWrap = new YtDlpWrap(process.env.YTDLP_BIN || '/var/task/.next/bin/yt-dlp');
 
 import fs from 'fs'; // Import fs to check file existence
 
