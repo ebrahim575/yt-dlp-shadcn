@@ -25,6 +25,15 @@ export async function GET(request: NextRequest) {
     console.log(`[Download API] YTDLP_BIN environment variable is not set.`);
   }
 
+  // Log the contents of the /var/task/bin directory
+  const binPath = '/var/task/bin/';
+  try {
+    const filesInBin = fs.readdirSync(binPath);
+    console.log(`[Download API] Files in ${binPath}: ${filesInBin.join(', ')}`);
+  } catch (error) {
+    console.error(`[Download API] Error reading ${binPath}:`, error);
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
   const format = searchParams.get('format') || 'mp3'; // Default to mp3

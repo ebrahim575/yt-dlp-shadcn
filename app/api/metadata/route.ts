@@ -6,6 +6,8 @@ const ytDlpWrap = new YtDlpWrap();
 
 import fs from 'fs'; // Import fs to check file existence
 
+import path from 'path'; // Import path to join directory paths
+
 export async function GET(request: NextRequest) {
   console.log(`[Metadata API] YTDLP_BIN environment variable: ${process.env.YTDLP_BIN}`);
   if (process.env.YTDLP_BIN) {
@@ -13,6 +15,16 @@ export async function GET(request: NextRequest) {
   } else {
     console.log(`[Metadata API] YTDLP_BIN environment variable is not set.`);
   }
+
+  // Log the contents of the /var/task/bin directory
+  const binPath = '/var/task/bin/';
+  try {
+    const filesInBin = fs.readdirSync(binPath);
+    console.log(`[Metadata API] Files in ${binPath}: ${filesInBin.join(', ')}`);
+  } catch (error) {
+    console.error(`[Metadata API] Error reading ${binPath}:`, error);
+  }
+
 
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
