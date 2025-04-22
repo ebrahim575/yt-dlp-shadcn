@@ -1,0 +1,26 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "Making yt-dlp executable..."
+        - chmod +x ./bin/yt-dlp
+        - echo "Installing dependencies..."
+        - npm ci --cache .npm --prefer-offline
+    build:
+      commands:
+        - echo "Running Next.js build..."
+        - npm run build
+        - echo "Copying yt-dlp to .next/bin for deployment..."
+        - mkdir -p .next/bin
+        - cp ./bin/yt-dlp .next/bin/yt-dlp
+        - echo "yt-dlp copied successfully."
+        - ls -la .next/bin
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - .next/cache/**/*
+      - .npm/**/*
