@@ -1,31 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import YtDlpWrap from 'yt-dlp-wrap';
 
-// Initialize YtDlpWrap - Ensure yt-dlp binary is accessible in PATH or provide path
-// Initialize YtDlpWrap - Ensure yt-dlp binary is accessible in PATH or provide path
-// Use environment variable or a fallback path
-const ytDlpWrap = new YtDlpWrap(process.env.YTDLP_BIN || '/var/task/.next/bin/yt-dlp');
-
 import fs from 'fs'; // Import fs to check file existence
 
+// Define the path to the yt-dlp binary using environment variable or a fallback
+const YTDLP_BIN = process.env.YTDLP_BIN || '/var/task/.next/bin/yt-dlp';
+
+// Initialize YtDlpWrap with the determined binary path
+const ytDlpWrap = new YtDlpWrap(YTDLP_BIN);
 
 export async function GET(request: NextRequest) {
-  console.log(`[Metadata API] YTDLP_BIN environment variable: ${process.env.YTDLP_BIN}`);
-  if (process.env.YTDLP_BIN) {
-    console.log(`[Metadata API] yt-dlp binary exists at YTDLP_BIN path: ${fs.existsSync(process.env.YTDLP_BIN)}`);
-  } else {
-    console.log(`[Metadata API] YTDLP_BIN environment variable is not set.`);
-  }
-
-  // Log the contents of the /var/task/bin directory
-  const binPath = '/var/task/bin/';
-  try {
-    const filesInBin = fs.readdirSync(binPath);
-    console.log(`[Metadata API] Files in ${binPath}: ${filesInBin.join(', ')}`);
-  } catch (error) {
-    console.error(`[Metadata API] Error reading ${binPath}:`, error);
-  }
-
+  console.log('[Metadata API] Effective YTDLP_BIN:', YTDLP_BIN);
+  console.log(`[Metadata API] yt-dlp binary exists at ${YTDLP_BIN}: ${fs.existsSync(YTDLP_BIN)}`);
 
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
