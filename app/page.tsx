@@ -40,55 +40,50 @@ export default function Home() {
   };
 
   const handleInputSubmit = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const trimmedUrl = inputValue.trim();
-      if (!trimmedUrl) return; // Don't submit if empty
-      console.log(`[handleInputSubmit] Started for URL: ${trimmedUrl}`); // Log start
-
-      // Add card with loading state immediately
-      const newCard: CardItem = { url: trimmedUrl, status: 'loading', copied: false }; // Initialize copied state
-      console.log('[handleInputSubmit] Adding loading card:', newCard); // Log card add
-      setCards(prevCards => [...prevCards, newCard]);
-      setInputValue(''); // Clear input after adding
-
+    if (e.key === 'Enter' && inputValue.trim()) {
+      const url = inputValue.trim();
+      
+      // Add card with loading state
+      setCards(prev => [...prev, { url, status: 'loading' }]);
+      
       try {
-        console.log(`[handleInputSubmit] Fetching metadata from /api/metadata?url=${encodeURIComponent(trimmedUrl)}`); // Log fetch start
-        const response = await fetch(`/api/metadata?url=${encodeURIComponent(trimmedUrl)}`);
-        console.log('[handleInputSubmit] Fetch response received:', response); // Log raw response
-        const data = await response.json();
-        console.log('[handleInputSubmit] Parsed data:', data); // Log parsed data
-
-        if (response.ok && data.success) {
-          console.log('[handleInputSubmit] Fetch successful. Updating card state.'); // Log success path
-          setCards(prevCards => {
-            const updatedCards = prevCards.map(card =>
-              card.url === trimmedUrl && card.status === 'loading'
-                ? { ...card, title: data.title, artist: data.artist, thumbnail: data.thumbnail, status: 'pending' as CardItem['status'] }
-                : card
-            );
-            console.log('[handleInputSubmit] New cards state (success):', updatedCards); // Log updated state
-            return updatedCards;
-          });
-        } else {
-          console.error("[handleInputSubmit] Metadata fetch failed:", data?.message || `Status: ${response.status}`); // Log failure path
-          setCards(prevCards => {
-            const updatedCards = prevCards.map(card =>
-              card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' as CardItem['status'] } : card
-            );
-            console.log('[handleInputSubmit] New cards state (failure):', updatedCards); // Log updated state
-            return updatedCards;
-          });
-        }
-      } catch (error) {
-        console.error("[handleInputSubmit] Error calling metadata API:", error); // Log catch block
-        setCards(prevCards => {
-           const updatedCards = prevCards.map(card =>
-            card.url === trimmedUrl && card.status === 'loading' ? { ...card, status: 'error' as CardItem['status'] } : card
-          );
-          console.log('[handleInputSubmit] New cards state (catch):', updatedCards); // Log updated state
-          return updatedCards;
+        // Get video info from FastAPI backend
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/video-info`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch video info');
+        }
+
+        const data = await response.json();
+        
+        // Update card with video info
+        setCards(prev => prev.map(card => 
+          card.url === url 
+            ? { 
+                ...card, 
+                status: 'pending',
+                title: data.title,
+                artist: data.uploader,
+                thumbnail: data.thumbnail
+              }
+            : card
+        ));
+      } catch (error) {
+        console.error('Error fetching video info:', error);
+        setCards(prev => prev.map(card => 
+          card.url === url 
+            ? { ...card, status: 'error' }
+            : card
+        ));
       }
+      
+      setInputValue('');
     }
   };
 
@@ -116,14 +111,29 @@ export default function Home() {
 
     for (const card of cardsToDownload) {
       try {
-        const apiUrl = `/api/download-single?url=${encodeURIComponent(card.url)}&format=${formatString}`;
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/download`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: card.url }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Download failed');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = apiUrl;
-        link.setAttribute('download', '');
+        link.href = url;
+        link.setAttribute('download', `${card.title || 'video'}.${formatString}`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-      } catch {
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download error:', error);
         setCards(prevCards => prevCards.map(c =>
           c.url === card.url ? { ...c, status: 'error' as CardItem['status'] } : c
         ));
