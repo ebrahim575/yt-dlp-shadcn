@@ -47,14 +47,8 @@ export default function Home() {
       setCards(prev => [...prev, { url, status: 'loading' }]);
       
       try {
-        // Get video info from FastAPI backend
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/video-info`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url }),
-        });
+        // Get video info from our Next.js API endpoint
+        const response = await fetch(`/api/metadata?url=${encodeURIComponent(url)}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch video info');
@@ -69,7 +63,7 @@ export default function Home() {
                 ...card, 
                 status: 'pending',
                 title: data.title,
-                artist: data.uploader,
+                artist: data.artist,
                 thumbnail: data.thumbnail
               }
             : card
@@ -95,7 +89,6 @@ export default function Home() {
     if (isDownloading || cards.length === 0) return;
 
     setIsDownloading(true);
-    const formatString = isMP4 ? 'mp4' : 'mp3';
 
     const cardsToDownload = cards.filter(card => card.status === 'pending');
     if (cardsToDownload.length === 0) {
@@ -111,13 +104,7 @@ export default function Home() {
 
     for (const card of cardsToDownload) {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/download`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: card.url }),
-        });
+        const response = await fetch(`/api/download-single?url=${encodeURIComponent(card.url)}&format=${isMP4 ? 'mp4' : 'mp3'}`);
 
         if (!response.ok) {
           throw new Error('Download failed');
@@ -127,7 +114,7 @@ export default function Home() {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `${card.title || 'video'}.${formatString}`);
+        link.setAttribute('download', `${card.title || 'video'}.${isMP4 ? 'mp4' : 'mp3'}`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
